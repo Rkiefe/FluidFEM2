@@ -20,8 +20,8 @@ clc
 dotSize = 40; % Size of scatter plot dots
 
 % Mesh Parameters
-hMax = 0; 	% maximum element size
-hMin = 0;	% minimum element size
+hMax = 0.1; 	% maximum element size, set to 0 if you want automatic size
+hMin = 0.1;		% minimum element size, set to 0 if you want automatic size
 
 % PDE model and mesh
 model = geometry(L=[20,10],		...
@@ -67,13 +67,18 @@ gN(4) = 1;
 % >> Run
 
 % Mass matrix
-M = boundaryMatrix(mesh,h);
+% M = boundaryMatrix(mesh,h);		% Using dense matrix
+M = sparseBoundaryMatrix(mesh,h);	% Using sparse matrix
 
-% Stiffness matrix and load vector
-A = stiffnessMatrix(mesh);
+% Stiffness matrix
+% A = stiffnessMatrix(mesh);		% Using dense matrix
+A = sparseStiffnessMatrix(mesh);	% Using sparse matrix
+
+% "Load" vector
 q = boundaryVector(mesh,gN - h.*gD);
 
-u = (A+M)\q;
+% u = (A+M)\q;				% When using dense matrix
+u = mldivide(A+M,q);		% When using sparse matrix
 
 % >> Calculate the fluid velocity v
 v = zeros(mesh.nt,2);
@@ -105,8 +110,7 @@ for k = 1:mesh.nt
 	pc(k,:) = mean(mesh.p(1:2,nds),2)';
 end
 
-% Plot vector Field of the velocity
-
+% >> Plot vector Field of the velocity
 figure
 pdegplot(model,"facelabels","off"); hold on
 plt = triplot(mesh.t',mesh.p(1,:),mesh.p(2,:),'k');
@@ -114,10 +118,9 @@ plt.Color = [plt.Color 0.05];
 
 q = quiver(pc(:,1),pc(:,2),v(:,1),v(:,2));
 
-% >> Plot |v|
+% Plot |v|
 scatter(pc(:,1),pc(:,2),dotSize,v_norm,'filled');
 cbar = colorbar;
-
 
 % --- Methods ---
 function A = stiffnessMatrix(mesh)
@@ -139,6 +142,7 @@ function A = stiffnessMatrix(mesh)
 		end
 	end
 end
+
 
 function q = boundaryVector(mesh,g)
 	q = zeros(mesh.nv,1);
@@ -187,6 +191,94 @@ function M = boundaryMatrix(mesh,h)
 	end 
 end
 
+function mat = sparseBoundaryMatrix(mesh,h)
+	% The 1D mass matrix, along the border of the domain
+	% Each edge has 2 nodes, 3 combinations
+	% 1: 1+2
+	% 3: 1+1 2+2
+
+	%These will be used on the nds arrays for each element to calculate the
+	%corresponding aij
+	nds_i=[1,1:2];
+	nds_j=[2,1:2];
+
+	M = zeros(3,mesh.ne);
+
+	% The actual sparse matrix
+ 	mat = sparse(mesh.nv,mesh.nv);
+
+	for e = 1:mesh.ne
+		nds = mesh.edgeList(1:2,e);
+
+		l = norm(mesh.p(1:2,nds(2))-mesh.p(1:2,nds(1)));
+		
+		M(:,e) = h(mesh.edgeList(end,e))*l/6;
+	end
+
+	% Cross terms
+	ind = 1;
+    mat = mat + sparse(mesh.edgeList(nds_i(ind),:),mesh.edgeList(nds_j(ind),:),M(ind,:),mesh.nv,mesh.nv);
+
+    % Add the other diagonal (mat is symmetric)
+    mat=mat+mat';
+
+    % Add the main diagonal 
+    for ind = 2:3
+        mat = mat + sparse(mesh.edgeList(nds_i(ind),:),mesh.edgeList(nds_j(ind),:),M(ind,:),mesh.nv,mesh.nv);
+    end
+end
+
+
+function mat = sparseStiffnessMatrix(mesh)
+    % Each triangle has 3 nodes, 6 combinations:
+    % 3: 12 ; 13 ; 23
+    % 3: 11 , 22, 33
+
+    %These will be used on the nds arrays for each element to calculate the
+    %corresponding aij
+    nds_i=[1,1,2,1:3];
+    nds_j=[2,3,3,1:3];
+
+    % All nonzero contributions to Aij in the same order as mesh.t
+    A = zeros(6,mesh.nt);
+
+    % The actual sparse array
+    mat = sparse(mesh.nv,mesh.nv); % to include the lagrange multiplier technique, add +1
+
+    for k = 1:mesh.nt
+        
+        %k = k_list(ind);
+        
+        % phi of each node
+        b=zeros(3,1);
+        c=zeros(3,1);
+
+        nds = mesh.t(:,k);   % Nodes of that element
+
+        % Determine all of the abcd coefficients for this element
+        for i = 1:length(nds) 
+            [~,b(i),c(i)] = abc(mesh.p,nds,nds(i));
+        end
+
+        A(:,k) = mesh.VE(k)*(b(nds_i).*b(nds_j) + ...
+                             c(nds_i).*c(nds_j));
+    end
+
+    % >> Sum all of the contributions into the sparse array
+    
+    % Cross terms
+    for ind = 1:3
+        mat = mat + sparse(mesh.t(nds_i(ind),:),mesh.t(nds_j(ind),:),A(ind,:),mesh.nv,mesh.nv);
+    end
+
+    % Add the other diagonal (mat is symmetric)
+    mat=mat+mat';
+
+    % Add the main diagonal 
+    for ind = 4:6
+        mat = mat + sparse(mesh.t(nds_i(ind),:),mesh.t(nds_j(ind),:),A(ind,:),mesh.nv,mesh.nv);
+    end
+end
 
 function [a,b,c] = abc(p,nds,nd) % [a,b,c]
 	nd1 = 0;
