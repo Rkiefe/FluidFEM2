@@ -16,25 +16,26 @@ close all
 clear
 clc
 
-% Settings
-dotSize = 40; % Size of scatter plot dots
+% Geometry type
+geo = "circle"; % "circle"
 
 % Mesh Parameters
-hMax = 0.1; 	% maximum element size, set to 0 if you want automatic size
-hMin = 0.1;		% minimum element size, set to 0 if you want automatic size
+hMax = 1; 	% maximum element size, set to 0 if you want automatic size
+hMin = 1;		% minimum element size, set to 0 if you want automatic size
 
 % PDE model and mesh
-model = geometry(L=[20,10],		...
-				 diameter=6,	...
-				 position=[0,0],...
-				 logic="sub");
-
-% !!! Rectangle example
-% model = geometry(shape="rectangle",...
-% 				 L=[20,10],		...
-% 				 L2=[5,2],	...
-% 				 position=[0,0],...
-% 				 logic="sub");
+if geo == "circle"
+	model = geometry(L=[20,10],		...
+					 diameter=6,	...
+					 position=[0,0],...
+					 logic="sub");
+else
+	model = geometry(shape="rectangle",...
+					 L=[20,10],		...
+					 L2=[5,2],	...
+					 position=[0,0],...
+					 logic="sub");
+end
 
 % >> Plot model
 fig_model = figure;
@@ -46,62 +47,15 @@ mesh = sketch(model,Hmax=hMax,Hmin=hMin);
 
 disp("Number of elements: "+ mesh.nt)
 disp("Number of inside elements: "+ mesh.nInside)
-% pause()
+pause()
 
 % >> Plot Mesh
 fig = figure; hold on
 pdemesh(model)
-% pause()
+pause()
 
-% >> Border conditions
-h = zeros(max(mesh.edgeList(3,:)),1);
-h(2) = 1e6;
-
-gD = zeros(max(mesh.edgeList(3,:)),1);
-gD(2) = 1;
-
-gN = zeros(max(mesh.edgeList(3,:)),1);
-gN(4) = 1;
-
-
-% >> Run
-
-% Mass matrix
-% M = boundaryMatrix(mesh,h);		% Using dense matrix
-M = sparseBoundaryMatrix(mesh,h);	% Using sparse matrix
-
-% Stiffness matrix
-% A = stiffnessMatrix(mesh);		% Using dense matrix
-A = sparseStiffnessMatrix(mesh);	% Using sparse matrix
-
-% "Load" vector
-q = boundaryVector(mesh,gN - h.*gD);
-
-% u = (A+M)\q;				% When using dense matrix
-u = mldivide(A+M,q);		% When using sparse matrix
-
-% >> Calculate the fluid velocity v
-v = zeros(mesh.nt,2);
-for k = 1:mesh.nt
-	% Nodes of the element
-	nds = mesh.t(:,k);
-
-	% X component of the potential
-    b = 0; 
-    % Y component of the potential
-    c = 0;
-    
-    % Calculate the total potential of the current element
-    for ind = 1:length(nds)
-        nd = nds(ind);
-
-        [~,bi,ci] = abc(mesh.p,nds,nd);
-
-        v(k,1) = v(k,1) - bi*u(nd);
-        v(k,2) = v(k,2) - ci*u(nd);
-    end
-end
-v_norm = sqrt(sum(v.^2,2)); % |v|
+% >> Run fluid simulation
+[v_vec,v] = fluid(mesh,geo,hMax=hMax,hMin=hMin);
 
 % >> Center of each element
 pc = zeros(mesh.nt,2);
@@ -116,13 +70,83 @@ pdegplot(model,"facelabels","off"); hold on
 plt = triplot(mesh.t',mesh.p(1,:),mesh.p(2,:),'k');
 plt.Color = [plt.Color 0.05];
 
-q = quiver(pc(:,1),pc(:,2),v(:,1),v(:,2));
+q = quiver(pc(:,1),pc(:,2),v_vec(:,1),v_vec(:,2));
 
 % Plot |v|
-scatter(pc(:,1),pc(:,2),dotSize,v_norm,'filled');
+scatter(pc(:,1),pc(:,2),[],v,'filled');
 cbar = colorbar;
 
 % --- Methods ---
+function [v_vec,v] = fluid(mesh,geo,options)
+
+	arguments
+		mesh
+		geo = "rectangle";
+		options.hMax = 0.1;
+		options.hMin = 0;
+	end
+
+	% >> Border conditions
+	if geo == "rectangle"
+		h = zeros(max(mesh.edgeList(3,:)),1);
+		h(1) = 1e6;
+
+		gD = zeros(max(mesh.edgeList(3,:)),1);
+		gD(1) = 1;
+
+		gN = zeros(max(mesh.edgeList(3,:)),1);
+		gN(6) = 1;
+	else
+		h = zeros(max(mesh.edgeList(3,:)),1);
+		h(1) = 1e6;
+
+		gD = zeros(max(mesh.edgeList(3,:)),1);
+		gD(1) = 1;
+
+		gN = zeros(max(mesh.edgeList(3,:)),1);
+		gN(3) = 1;
+	end
+
+	% >> Run
+
+	% Mass matrix
+	% M = boundaryMatrix(mesh,h);		% Using dense matrix
+	M = sparseBoundaryMatrix(mesh,h);	% Using sparse matrix
+
+	% Stiffness matrix
+	% A = stiffnessMatrix(mesh);		% Using dense matrix
+	A = sparseStiffnessMatrix(mesh);	% Using sparse matrix
+
+	% "Load" vector
+	q = boundaryVector(mesh,gN - h.*gD);
+
+	% u = (A+M)\q;				% When using dense matrix
+	u = mldivide(A+M,q);		% When using sparse matrix
+
+	% >> Calculate the fluid velocity v
+	v_vec = zeros(mesh.nt,2);
+	for k = 1:mesh.nt
+		% Nodes of the element
+		nds = mesh.t(:,k);
+
+		% X component of the potential
+	    b = 0; 
+	    % Y component of the potential
+	    c = 0;
+	    
+	    % Calculate the total potential of the current element
+	    for ind = 1:length(nds)
+	        nd = nds(ind);
+
+	        [~,bi,ci] = abc(mesh.p,nds,nd);
+
+	        v_vec(k,1) = v_vec(k,1) - bi*u(nd);
+	        v_vec(k,2) = v_vec(k,2) - ci*u(nd);
+	    end
+	end
+	v = sqrt(sum(v_vec.^2,2)); % |v|
+end % End of fluid simulation
+
 function A = stiffnessMatrix(mesh)
 	A = zeros(mesh.nv);
 	for k = 1:mesh.nt
