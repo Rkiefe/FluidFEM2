@@ -128,11 +128,6 @@ function [v_vec,v] = fluid(mesh,geo,options)
 	for k = 1:mesh.nt
 		% Nodes of the element
 		nds = mesh.t(:,k);
-
-		% X component of the potential
-	    b = 0; 
-	    % Y component of the potential
-	    c = 0;
 	    
 	    % Calculate the total potential of the current element
 	    for ind = 1:length(nds)
