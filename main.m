@@ -92,7 +92,7 @@ function [v_vec,v] = fluid(mesh,geo,options)
 		h(1) = 1e6;
 
 		gD = zeros(max(mesh.edgeList(3,:)),1);
-		gD(1) = 1;
+		% gD(1) = 1;
 
 		gN = zeros(max(mesh.edgeList(3,:)),1);
 		gN(6) = 1;
@@ -101,7 +101,7 @@ function [v_vec,v] = fluid(mesh,geo,options)
 		h(1) = 1e6;
 
 		gD = zeros(max(mesh.edgeList(3,:)),1);
-		gD(1) = 1;
+		% gD(1) = 1;
 
 		gN = zeros(max(mesh.edgeList(3,:)),1);
 		gN(3) = 1;
