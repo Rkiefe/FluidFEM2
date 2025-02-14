@@ -1,13 +1,8 @@
 %{
 	Solves the steady state fluid flow for an incompressible viscous fluid 
-
 	Solving for the velocity and pressure
 
-	Eq.: grad p - mu laplacian u = rho f
-
-	f is a load force
-
-	Following Larson chapter 12.2
+	This is moslty 1 to 1 from Mats G. Larson 2013 book "The finite element method: Theory, implementation and applications" chapter 12.2
 %}
 
 close all
