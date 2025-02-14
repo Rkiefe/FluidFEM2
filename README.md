@@ -23,6 +23,6 @@ The lid-driven cavity problem has straight forward boundary conditions: the velo
 ![velocity_pressure](https://github.com/user-attachments/assets/9488b18e-b8a2-4298-8e7d-f83da717a468)
 
 
-### Non-viscous problem solution
+### Non-viscous fluid around an obstacle
 ![fluidSimulation](https://github.com/user-attachments/assets/e75a66ef-492f-4b65-ae30-fccdb74b837b)
 ![fluidSimulation_HighRes](https://github.com/user-attachments/assets/6913bd90-fa99-452c-a9ec-2e176a1b85b7)
