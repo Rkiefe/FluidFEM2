@@ -11,7 +11,7 @@ Previously, this repository had a simulation of a fairly unrealistic fluid, cons
 The mixed finite element method considers two different basis functions. Here, the pressure is approximated by piece-wise constant functions and the velocity field by the Crouzeix-Raviart function (which has an explicit form using the simple hat functions).
 
 $$
--\nabla^2 \vec{u} + \nabla p = \rho \fec{f}
+-\nabla^2 \vec{u} + \nabla p = \rho \vec{f}
 $$
 
 where u is the velocity field and p is the pressure, f is a load force.
