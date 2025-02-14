@@ -20,6 +20,7 @@ The lid-driven cavity problem has straight forward boundary conditions: the velo
 
 ### Lid-driven cavity problem
  
+![velocity_pressure](https://github.com/user-attachments/assets/9488b18e-b8a2-4298-8e7d-f83da717a468)
 
 
 ### Non-viscous problem solution
